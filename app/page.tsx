@@ -275,17 +275,58 @@ export default function TeamResumeGenerator() {
     }
   }
 
-  const downloadContent = (content: string, filename: string, format: "txt" | "pdf" = "txt") => {
-    const blob = new Blob([content], { type: format === "pdf" ? "application/pdf" : "text/plain" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `${filename}.${format}`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+  const downloadContent = async (
+  content: string,
+  filename: string,
+  format: "txt" | "pdf"
+) => {
+  try {
+    if (format === "pdf") {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF();
+
+      const margin = 10;
+      const pageHeight = doc.internal.pageSize.height - margin * 2;
+      const pageWidth = doc.internal.pageSize.width - margin * 2;
+
+      const lines = doc.splitTextToSize(content, pageWidth);
+      let y = margin;
+
+      lines.forEach((line: string) => {
+        if (y > pageHeight) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.text(line, margin, y);
+        y += 7;
+      });
+
+      doc.save(`${filename}.pdf`);
+    } else {
+      const blob = new Blob([content], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${filename}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  } catch (error) {
+    console.error("PDF generation failed, falling back to TXT:", error);
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${filename}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
+};
+
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return "text-green-600"
